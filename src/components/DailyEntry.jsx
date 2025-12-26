@@ -234,29 +234,29 @@ const CustomerRow = ({ customer, selectedDate, currentShift, existingLog, onSave
         
         {/* 1. Volume Inputs */}
         <div style={{display:'flex', gap:'8px'}}>
-          <div style={{...styles.inputGroup, width: '70px', opacity: isEditing ? 1 : 0.6}}>
+          <div style={{...styles.inputGroup, width: '150px', opacity: isEditing ? 1 : 0.6}}>
             <input type="number" value={liters} onChange={(e) => setLiters(e.target.value)} disabled={!isEditing} placeholder="0" style={styles.input} />
             <span style={styles.label}>L</span>
           </div>
-          <div style={{...styles.inputGroup, width: '80px', opacity: isEditing ? 1 : 0.6}}>
+          <div style={{...styles.inputGroup, width: '150px', opacity: isEditing ? 1 : 0.6}}>
             <input type="number" value={ml} onChange={(e) => setMl(e.target.value)} disabled={!isEditing} placeholder="0" style={styles.input} />
             <span style={styles.label}>ml</span>
           </div>
         </div>
 
         {/* 2. SAVE BUTTON (Middle) */}
-        <div style={{margin: '0 10px'}}>
+        <div style={{margin: '0 20px'}}>
           {isEditing ? (
              <button onClick={handleSaveClick} style={{
                ...styles.iconBtn, background: '#10B981', color: 'white', width:'40px', height:'40px', boxShadow:'0 2px 5px rgba(16, 185, 129, 0.3)'
              }} title="Save">
-               ✓
+                <span style={{ fontSize: "20px" }}>💾</span>
              </button>
           ) : (
              <button onClick={() => setIsEditing(true)} style={{
                ...styles.iconBtn, background: 'var(--btn-bg)', color: '#3B82F6', width:'40px', height:'40px'
              }} title="Edit Entry">
-               ✎
+               <span style={{ fontSize: "20px" }}>✏️</span>
              </button>
           )}
         </div>
@@ -282,9 +282,9 @@ const CustomerRow = ({ customer, selectedDate, currentShift, existingLog, onSave
         {/* 4. Settings */}
         <div style={{marginLeft: '10px'}}>
           <button onClick={() => onEditProfile(customer)} style={{
-             ...styles.iconBtn, background: 'var(--btn-bg)', color: 'var(--text-secondary)', width:'40px', height:'40px'
-          }} title="Settings">
-            ⚙️
+             ...styles.iconBtn, background: '#793bf6ff', color: 'var(--text-secondary)', width:'40px', height:'40px'
+          }} title="Edit Customer">
+            <span style={{ fontSize: "20px" }}>⚙️</span>
           </button>
         </div>
 
