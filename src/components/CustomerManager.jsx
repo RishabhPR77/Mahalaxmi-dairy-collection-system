@@ -27,7 +27,7 @@ const styles = {
     fontSize: '13px', fontWeight: '600', color: 'var(--text-secondary)', marginLeft: '4px'
   },
   inputRow: {
-    display: 'flex', gap: '8px' // Keeps input + translate button together
+    display: 'flex', gap: '8px' 
   },
   input: {
     width: '100%', padding: '12px', borderRadius: '10px', 
@@ -40,31 +40,72 @@ const styles = {
     fontWeight: 'bold', cursor: 'pointer', color: 'white', 
     fontSize: '15px', flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center'
   },
+  // Shift Toggle Buttons
+  shiftContainer: {
+    display: 'flex', gap: '5px', background: 'var(--input-bg)', 
+    padding: '4px', borderRadius: '10px', border: '1px solid var(--border-color)'
+  },
+  shiftBtn: (isActive, color) => ({
+    flex: 1,
+    padding: '10px',
+    borderRadius: '8px',
+    border: 'none',
+    cursor: 'pointer',
+    fontSize: '13px',
+    fontWeight: '600',
+    background: isActive ? 'var(--card-bg)' : 'transparent',
+    color: isActive ? color : 'var(--text-secondary)',
+    boxShadow: isActive ? '0 2px 4px rgba(0,0,0,0.1)' : 'none',
+    transition: 'all 0.2s',
+    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px'
+  }),
   customerItem: {
     padding: '15px', borderBottom: '1px solid var(--border-color)', cursor: 'pointer',
     display: 'flex', justifyContent: 'space-between', alignItems: 'center'
   },
   activeItem: {
-    background: 'rgba(16, 185, 129, 0.1)', // Light green highlight
+    background: 'rgba(16, 185, 129, 0.1)', 
     borderLeft: '4px solid #10B981'
   },
   listContainer: {
-    maxHeight: '400px', overflowY: 'auto', 
+    maxHeight: '500px', overflowY: 'auto', 
     border: '1px solid var(--border-color)', borderRadius: '12px',
-    marginTop: '20px'
+    marginTop: '20px',
+    position: 'relative' // Needed for sticky header
+  },
+  stickyHeader: {
+    position: 'sticky', 
+    top: 0, 
+    background: 'var(--card-bg)', 
+    zIndex: 10, 
+    borderBottom: '1px solid var(--border-color)',
+    paddingBottom: '10px'
   }
 };
 
 const CustomerManager = ({ customers, t, performMagic }) => {
-  const [newCustomer, setNewCustomer] = useState({ id: "", name: "", address: "", mobile: "", rate: "" });
+  const [newCustomer, setNewCustomer] = useState({ id: "", name: "", address: "", mobile: "", rate: "", shift: "both" });
   const [editingId, setEditingId] = useState(null);
   const [loading, setLoading] = useState(false);
+  
+  // --- NEW SEARCH STATES ---
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchLoading, setSearchLoading] = useState(false);
 
+  // Form Magic
   const handleMagicToggle = async (field) => {
     setLoading(true);
     const result = await performMagic(newCustomer[field]);
     setNewCustomer(prev => ({ ...prev, [field]: result }));
     setLoading(false);
+  };
+
+  // Search Magic
+  const handleSearchMagic = async () => {
+    setSearchLoading(true);
+    const result = await performMagic(searchQuery);
+    setSearchQuery(result);
+    setSearchLoading(false);
   };
 
   const handleSaveCustomer = async () => {
@@ -78,12 +119,13 @@ const CustomerManager = ({ customers, t, performMagic }) => {
     const customerData = { 
         ...newCustomer, 
         id: editingId ? editingId : newCustomer.id.trim(), 
-        rate: Number(newCustomer.rate) 
+        rate: Number(newCustomer.rate),
+        shift: newCustomer.shift || 'both' 
     };
 
     try {
         await addCustomerToDb(customerData); 
-        setNewCustomer({ id: "", name: "", address: "", mobile: "", rate: "" }); 
+        setNewCustomer({ id: "", name: "", address: "", mobile: "", rate: "", shift: "both" }); 
         setEditingId(null);
         alert("Success! Customer Saved."); 
     } catch (e) {
@@ -93,21 +135,33 @@ const CustomerManager = ({ customers, t, performMagic }) => {
   };
 
   const startEditing = (customer) => {
-    setNewCustomer(customer);
+    setNewCustomer({ ...customer, shift: customer.shift || 'both' }); 
     setEditingId(customer.id);
-    // Scroll to top on mobile
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const cancelEdit = () => {
     setEditingId(null);
-    setNewCustomer({ id: "", name: "", address: "", mobile: "", rate: "" });
+    setNewCustomer({ id: "", name: "", address: "", mobile: "", rate: "", shift: "both" });
   };
+
+  const getShiftIcon = (shift) => {
+      if (shift === 'morning') return '☀️';
+      if (shift === 'evening') return '🌙';
+      return '🌗';
+  };
+
+  // --- FILTER CUSTOMERS BASED ON SEARCH ---
+  const filteredCustomers = customers.filter(c => 
+    c.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+    c.id.toString().includes(searchQuery)
+  );
 
   return (
     <div style={{...styles.card, border: editingId ? '2px solid #10B981' : styles.card.border}}>
       <h3 style={styles.header}>{editingId ? t.editCustomerHeader : t.addCustomerHeader}</h3>
       
+      {/* FORM SECTION */}
       <div style={styles.formStack}>
         {/* ID */}
         <div style={styles.inputGroup}>
@@ -143,7 +197,23 @@ const CustomerManager = ({ customers, t, performMagic }) => {
             </div>
         </div>
 
-        {/* Mobile & Rate (Side by side on large screens, stacked on small) */}
+        {/* Shift Selection */}
+        <div style={styles.inputGroup}>
+            <label style={styles.label}>Preferred Shift (शिफ्ट चुनें)</label>
+            <div style={styles.shiftContainer}>
+                <button onClick={() => setNewCustomer({...newCustomer, shift: 'both'})} style={styles.shiftBtn(newCustomer.shift === 'both', '#6366F1')}>
+                    <span style={{fontSize:'16px'}}>🌗</span><span>Both (दोनों)</span>
+                </button>
+                <button onClick={() => setNewCustomer({...newCustomer, shift: 'morning'})} style={styles.shiftBtn(newCustomer.shift === 'morning', '#F59E0B')}>
+                    <span style={{fontSize:'16px'}}>☀️</span><span>Morning (सुबह)</span>
+                </button>
+                <button onClick={() => setNewCustomer({...newCustomer, shift: 'evening'})} style={styles.shiftBtn(newCustomer.shift === 'evening', '#4F46E5')}>
+                    <span style={{fontSize:'16px'}}>🌙</span><span>Evening (शाम)</span>
+                </button>
+            </div>
+        </div>
+
+        {/* Mobile & Rate */}
         <div style={{display:'flex', gap:'15px', flexWrap:'wrap'}}>
             <div style={{...styles.inputGroup, flex: 1, minWidth: '140px'}}>
                 <label style={styles.label}>Mobile Number</label>
@@ -168,12 +238,37 @@ const CustomerManager = ({ customers, t, performMagic }) => {
         </div>
       </div>
       
-      {/* Customer List */}
+      {/* CUSTOMER LIST WITH SEARCH */}
       <div style={styles.listContainer}>
-          <div style={{padding:'10px', background:'var(--input-bg)', borderBottom:'1px solid var(--border-color)', fontWeight:'bold', textAlign:'center', color:'var(--text-secondary)'}}>
-              Existing Customers (Tap to Edit)
+          
+          {/* Sticky Header with Search */}
+          <div style={styles.stickyHeader}>
+              <div style={{padding:'10px', fontWeight:'bold', textAlign:'center', color:'var(--text-secondary)'}}>
+                  Existing Customers (Tap to Edit)
+              </div>
+              <div style={{padding: '0 15px', display: 'flex', gap: '8px'}}>
+                  <input 
+                      style={{...styles.input, padding: '10px', fontSize: '14px', background: 'var(--input-bg)'}} 
+                      placeholder="Search ID or Name..." 
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                  />
+                  <button 
+                      onClick={handleSearchMagic} 
+                      style={{...styles.btn, background:'#8B5CF6', flex:'none', width:'50px', padding: 0}}
+                  >
+                      {searchLoading ? '...' : 'अ'}
+                  </button>
+              </div>
           </div>
-          {customers.map(c => (
+
+          {/* List Items */}
+          {filteredCustomers.length === 0 ? (
+             <div style={{padding: '20px', textAlign: 'center', color: 'var(--text-secondary)', fontStyle: 'italic'}}>
+                 No customers found.
+             </div>
+          ) : (
+             filteredCustomers.map(c => (
               <div 
                 key={c.id} 
                 onClick={() => startEditing(c)} 
@@ -182,13 +277,23 @@ const CustomerManager = ({ customers, t, performMagic }) => {
                     ...(editingId === c.id ? styles.activeItem : {})
                 }}
               >
-                  <div>
-                      <div style={{fontWeight:'bold'}}>#{c.id} {c.name}</div>
-                      <div style={{fontSize:'12px', color:'var(--text-secondary)'}}>{c.address || 'No Address'}</div>
+                  <div style={{display:'flex', alignItems:'center', gap:'10px'}}>
+                      <div style={{
+                          background:'var(--input-bg)', width:'30px', height:'30px', borderRadius:'50%', 
+                          display:'flex', alignItems:'center', justifyContent:'center', fontSize:'14px',
+                          border: '1px solid var(--border-color)'
+                      }}>
+                          {getShiftIcon(c.shift || 'both')}
+                      </div>
+                      <div>
+                          <div style={{fontWeight:'bold'}}>#{c.id} {c.name}</div>
+                          <div style={{fontSize:'12px', color:'var(--text-secondary)'}}>{c.address || 'No Address'}</div>
+                      </div>
                   </div>
                   <div style={{fontWeight:'bold', color:'#10B981'}}>₹{c.rate}</div>
               </div>
-          ))}
+             ))
+          )}
       </div>
     </div>
   );

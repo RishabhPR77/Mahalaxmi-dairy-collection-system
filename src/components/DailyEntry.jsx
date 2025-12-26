@@ -234,11 +234,11 @@ const CustomerRow = ({ customer, selectedDate, currentShift, existingLog, onSave
         
         {/* 1. Volume Inputs */}
         <div style={{display:'flex', gap:'8px'}}>
-          <div style={{...styles.inputGroup, width: '100px', opacity: isEditing ? 1 : 0.6}}>
+          <div style={{...styles.inputGroup, width: '70px', opacity: isEditing ? 1 : 0.6}}>
             <input type="number" value={liters} onChange={(e) => setLiters(e.target.value)} disabled={!isEditing} placeholder="0" style={styles.input} />
             <span style={styles.label}>L</span>
           </div>
-          <div style={{...styles.inputGroup, width: '100px', opacity: isEditing ? 1 : 0.6}}>
+          <div style={{...styles.inputGroup, width: '80px', opacity: isEditing ? 1 : 0.6}}>
             <input type="number" value={ml} onChange={(e) => setMl(e.target.value)} disabled={!isEditing} placeholder="0" style={styles.input} />
             <span style={styles.label}>ml</span>
           </div>
@@ -335,10 +335,24 @@ const DailyEntry = ({ customers, logs, performMagic, selectedDate, setSelectedDa
     }
   };
 
-  const filteredCustomers = localCustomers.filter(c => 
-    c.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    c.id.toString().includes(searchTerm)
-  );
+  // --- FILTER LOGIC FIXED ---
+  const filteredCustomers = localCustomers.filter(c => {
+    // 1. Search Filter
+    const matchesSearch = c.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                          c.id.toString().includes(searchTerm);
+    
+    // 2. Shift Filter Logic
+    // If customer has no preference, default to 'both'
+    const custShift = c.shift || 'both';
+    
+    // Logic: 
+    // - If customer is 'both', show in both shifts.
+    // - If customer is 'morning', show ONLY in morning.
+    // - If customer is 'evening', show ONLY in evening.
+    const matchesShift = custShift === 'both' || custShift === currentShift;
+
+    return matchesSearch && matchesShift;
+  });
 
   return (
     <div style={{maxWidth: '900px', margin: '0 auto', padding: '15px', fontFamily: "'Inter', sans-serif"}}>
@@ -360,7 +374,7 @@ const DailyEntry = ({ customers, logs, performMagic, selectedDate, setSelectedDa
           --btn-bg: #F3F4F6;
         }
 
-        /* DARK MODE - Activates when body has 'dark' or 'dark-mode' class */
+        /* DARK MODE */
         body.dark, body.dark-mode, [data-theme='dark'] {
           --card-bg: #1F2937;
           --header-bg: #1F2937;

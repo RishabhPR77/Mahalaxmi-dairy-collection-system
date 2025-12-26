@@ -137,7 +137,7 @@ const Dashboard = ({ customers, logs, t, exportData, importData }) => {
         {/* Daily Total Section */}
         <div>
            <h3 style={{...styles.sectionTitle, color: '#10B981', borderColor: '#10B981'}}>
-              📊 {t.lblDailyHeader}
+               {t.lblDailyHeader}
            </h3>
            <div style={styles.grid}>
               <div style={styles.card}>
@@ -158,7 +158,7 @@ const Dashboard = ({ customers, logs, t, exportData, importData }) => {
         {/* Morning Section */}
         <div>
            <h3 style={{...styles.sectionTitle, color: '#F59E0B', borderColor: '#F59E0B'}}>
-              ☀️ {t.lblMorningHeader}
+               {t.lblMorningHeader}
            </h3>
            <div style={styles.grid}>
               <div style={styles.card}>
@@ -179,7 +179,7 @@ const Dashboard = ({ customers, logs, t, exportData, importData }) => {
         {/* Evening Section */}
         <div>
            <h3 style={{...styles.sectionTitle, color: '#6366F1', borderColor: '#6366F1'}}>
-              🌙 {t.lblEveningHeader}
+               {t.lblEveningHeader}
            </h3>
            <div style={styles.grid}>
               <div style={styles.card}>
@@ -200,7 +200,7 @@ const Dashboard = ({ customers, logs, t, exportData, importData }) => {
         {/* Data Management (Import/Export) */}
         <div>
            <h3 style={{...styles.sectionTitle, color: 'var(--text-secondary)'}}>
-              💾 {t.lblDataHeader}
+               {t.lblDataHeader}
            </h3>
            <div style={{
                background:'var(--card-bg)', padding:'20px', borderRadius:'12px', 
@@ -208,12 +208,12 @@ const Dashboard = ({ customers, logs, t, exportData, importData }) => {
                display:'flex', gap:'15px', justifyContent:'center', flexWrap:'wrap'
            }}>
                 <button onClick={exportData} style={{...styles.btn, background:'#6366F1'}}>
-                    📤 {t.btnExport} JSON
+                     {t.btnExport} JSON
                 </button>
                 
                 <input type="file" accept=".json" ref={fileInputRef} style={{display: 'none'}} onChange={importData} />
                 <button onClick={() => fileInputRef.current.click()} style={{...styles.btn, background:'#10B981'}}>
-                    📥 {t.btnImport} JSON
+                     {t.btnImport} JSON
                 </button>
            </div>
         </div>
