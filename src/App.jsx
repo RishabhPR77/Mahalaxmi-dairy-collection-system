@@ -153,6 +153,8 @@ function App() {
       {activeTab === 'customers' && (
         <CustomerManager 
             customers={customers} 
+            logs={logs}           
+            payments={payments}   
             t={t} 
             performMagic={performMagic} 
             setActiveTab={setActiveTab} 
@@ -166,7 +168,6 @@ function App() {
             payments={payments} 
             t={t} 
             performMagic={performMagic} 
-            // Note: delete logic is now handled inside Payments.jsx via db.js
         />
       )}
       
@@ -190,9 +191,10 @@ function App() {
       {activeTab === 'delete' && (
         <DeleteTab 
             customers={customers} 
+            logs={logs}          // <--- IMPORTANT: Passed logs to delete
+            payments={payments}  // <--- IMPORTANT: Passed payments to delete
             t={t} 
             performMagic={performMagic} 
-            // Note: delete logic is now handled inside DeleteTab.jsx via db.js
         />
       )}
 

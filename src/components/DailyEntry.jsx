@@ -185,29 +185,51 @@ const CustomerRow = ({ customer, selectedDate, currentShift, existingLog, onSave
   const getInitialLit = () => currentShift === 'morning' ? (existingLog?.morning_liters || "") : (existingLog?.evening_liters || "");
   const getInitialMl = () => currentShift === 'morning' ? (existingLog?.morning_ml || "") : (existingLog?.evening_ml || "");
   
+  // FIXED: Default to TRUE (Edit Mode) so input is always shown first
   const [isEditing, setIsEditing] = useState(true);
   const [liters, setLiters] = useState(getInitialLit());
   const [ml, setMl] = useState(getInitialMl());
   const [rate, setRate] = useState(customer.rate || 60);
 
-  // --- LOGIC UPDATED TO PRESERVE HISTORICAL RATES ---
   useEffect(() => {
     setLiters(getInitialLit());
     setMl(getInitialMl());
     
-    // Logic: If there is ALREADY a log for this day, respect that day's rate.
-    // Only if there is NO log, use the customer's current global rate.
+    // 1. Rate Logic (Historical)
     if (existingLog && existingLog.rate !== undefined && existingLog.rate !== null && existingLog.rate !== "") {
         setRate(existingLog.rate);
     } else {
         setRate(customer.rate || 60);
     }
     
-    setIsEditing(true); 
+    // 2. Logic: Should we show Pencil (View) or Save (Edit)?
+    let hasDataForShift = false;
+    
+    if (existingLog) {
+        if (currentShift === 'morning') {
+            const l = existingLog.morning_liters;
+            const m = existingLog.morning_ml;
+            // Check if valid data exists (not null, not undefined, not "0", not empty string)
+            if ((l && l !== "0" && l !== "") || (m && m !== "0" && m !== "")) {
+                hasDataForShift = true;
+            }
+        } else {
+            const l = existingLog.evening_liters;
+            const m = existingLog.evening_ml;
+            if ((l && l !== "0" && l !== "") || (m && m !== "0" && m !== "")) {
+                hasDataForShift = true;
+            }
+        }
+    }
+
+    // If data exists -> View Mode (false). If NO data -> Edit Mode (true).
+    setIsEditing(!hasDataForShift);
+
   }, [selectedDate, currentShift, existingLog, customer.rate]);
 
   const handleSaveClick = () => {
     onSaveEntry(customer.id, liters, ml, rate);
+    // After save, we manually set editing to false to show the pencil immediately
     setIsEditing(false); 
   };
 

@@ -1,165 +1,126 @@
 import React, { useState } from 'react';
-import { deleteCustomerFromDb } from '../services/db'; // <--- IMPORT FIREBASE FUNCTION
+import { deleteCustomerFromDb, deleteLogEntry, deletePaymentFromDb } from '../services/db';
 
-// --- STYLES (Dark Mode Ready) ---
 const styles = {
-  card: {
-    background: 'var(--card-bg)',
-    color: 'var(--text-main)',
-    borderRadius: '16px',
-    boxShadow: 'var(--card-shadow)',
-    padding: '25px',
-    border: '1px solid var(--border-color)',
-    textAlign: 'center',
-    maxWidth: '600px',
-    margin: '0 auto',
-    transition: 'background 0.3s'
+  container: {
+    maxWidth: '600px', margin: '20px auto', padding: '20px',
+    background: 'var(--card-bg)', borderRadius: '16px',
+    boxShadow: 'var(--card-shadow)', border: '1px solid #EF4444',
+    color: 'var(--text-main)', textAlign: 'center'
   },
-  header: {
-    color: '#EF4444', // Red for danger
-    marginBottom: '20px',
-    fontSize: '22px',
-    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px'
-  },
-  searchContainer: {
-    display: 'flex', gap: '10px', marginBottom: '25px'
-  },
+  header: { color: '#EF4444', marginBottom: '10px' },
+  warning: { background: 'rgba(239, 68, 68, 0.1)', color: '#EF4444', padding: '10px', borderRadius: '8px', fontSize: '13px', marginBottom: '20px' },
   input: {
-    flex: 1,
-    padding: '12px',
-    borderRadius: '8px',
-    border: '2px solid #EF4444', // Red border
-    background: 'var(--input-bg)',
-    color: 'var(--text-main)',
-    outline: 'none',
-    fontSize: '16px'
+    width: '100%', padding: '12px', borderRadius: '8px',
+    border: '1px solid var(--border-color)',
+    background: 'var(--input-bg)', color: 'var(--text-main)',
+    marginBottom: '10px', fontSize: '16px'
   },
-  translateBtn: {
-    background: '#EF4444',
-    color: 'white',
-    border: 'none',
-    borderRadius: '8px',
-    padding: '0 20px',
-    cursor: 'pointer',
-    fontWeight: 'bold'
+  btn: {
+    width: '100%', padding: '15px', borderRadius: '8px', border: 'none',
+    fontWeight: 'bold', cursor: 'pointer', color: 'white',
+    background: '#EF4444', fontSize: '16px', marginTop: '10px'
   },
-  // Item Styles
-  itemCard: {
-    background: 'var(--input-bg)', // Slightly darker/lighter than card
-    padding: '15px',
-    borderRadius: '12px',
-    marginBottom: '10px',
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    border: '1px solid var(--border-color)'
+  list: {
+    textAlign: 'left', maxHeight: '300px', overflowY: 'auto',
+    border: '1px solid var(--border-color)', borderRadius: '8px',
+    marginTop: '10px'
   },
-  itemInfo: {
-    textAlign: 'left'
-  },
-  name: {
-    fontSize: '18px',
-    fontWeight: 'bold',
-    color: 'var(--text-main)'
-  },
-  address: {
-    fontSize: '14px',
-    color: 'var(--text-secondary)'
-  },
-  deleteBtn: {
-    background: '#DC2626', // Darker red
-    color: 'white',
-    border: 'none',
-    padding: '10px 20px',
-    borderRadius: '8px',
-    fontWeight: 'bold',
-    cursor: 'pointer',
-    boxShadow: '0 4px 6px rgba(220, 38, 38, 0.3)'
+  item: {
+    padding: '10px', borderBottom: '1px solid var(--border-color)',
+    cursor: 'pointer', display: 'flex', justifyContent: 'space-between'
   }
 };
 
-const DeleteTab = ({ customers, t, performMagic }) => {
-  const [deleteSearch, setDeleteSearch] = useState("");
+const DeleteTab = ({ customers, logs, payments, t, performMagic }) => {
+  const [search, setSearch] = useState("");
+  const [selectedId, setSelectedId] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  // Filter customers based on search
-  const deleteFiltered = customers.filter(c => 
-    deleteSearch && (
-      c.id.toLowerCase().includes(deleteSearch.toLowerCase()) || 
-      c.name.toLowerCase().includes(deleteSearch.toLowerCase())
-    )
+  // Filter customers
+  const filtered = customers.filter(c =>
+    c.name.toLowerCase().includes(search.toLowerCase()) ||
+    c.id.toString().includes(search)
   );
 
-  const handleDeleteSearchMagic = async () => {
+  const handleHardDelete = async () => {
+    if (!selectedId) return;
+    const customer = customers.find(c => c.id === selectedId);
+    const confirmMsg = `🚨 NUCLEAR DELETE WARNING 🚨\n\nThis will PERMANENTLY DELETE:\n1. Customer Profile: ${customer.name}\n2. ALL Daily Milk Logs\n3. ALL Payment History\n\nThere is no undo. Are you sure?`;
+
+    if (!window.confirm(confirmMsg)) return;
+
     setLoading(true);
-    const result = await performMagic(deleteSearch);
-    setDeleteSearch(result);
+    try {
+      // 1. Find and Delete ALL Logs for this ID
+      const logKeysToDelete = Object.keys(logs).filter(key => key.endsWith(`-${selectedId}`));
+      let logCount = 0;
+      for (const key of logKeysToDelete) {
+        const [date] = key.split(`-${selectedId}`);
+        await deleteLogEntry(date, selectedId);
+        logCount++;
+      }
+
+      // 2. Find and Delete ALL Payments for this ID
+      const paymentsToDelete = payments.filter(p => p.customerId === selectedId);
+      let payCount = 0;
+      for (const p of paymentsToDelete) {
+        await deletePaymentFromDb(p.id);
+        payCount++;
+      }
+
+      // 3. Delete the Profile
+      await deleteCustomerFromDb(selectedId);
+
+      alert(`Success! Deleted:\n- Profile\n- ${logCount} Daily Logs\n- ${payCount} Payment Records\n\nID "${selectedId}" is now completely clean.`);
+      setSearch("");
+      setSelectedId(null);
+    } catch (error) {
+      console.error(error);
+      alert("Error during deletion. Check console.");
+    }
     setLoading(false);
   };
 
-  // --- FIREBASE DELETE LOGIC ---
-  const handleConfirmDelete = async (customerId, customerName) => {
-    // 1. Double confirmation check
-    const isConfirmed = window.confirm(
-      `⚠️ WARNING ⚠️\n\nAre you sure you want to delete ${customerName} (#${customerId})?\n\nThis will remove them from the database permanently.`
-    );
-
-    if (isConfirmed) {
-      try {
-        await deleteCustomerFromDb(customerId); // Call DB function
-        alert("Customer deleted successfully.");
-        setDeleteSearch(""); // Clear search
-      } catch (error) {
-        console.error("Error deleting:", error);
-        alert("Failed to delete. Check console.");
-      }
-    }
-  };
-
   return (
-    <div style={styles.card}>
-      <h3 style={styles.header}>⚠️ {t.deleteTabHeader}</h3>
-      
-      {/* Search Bar */}
-      <div style={styles.searchContainer}>
-        <input 
-          type="text" 
-          placeholder={t.searchDeletePlaceholder} 
-          value={deleteSearch} 
-          onChange={(e) => setDeleteSearch(e.target.value)} 
-          style={styles.input} 
-        />
-        <button onClick={handleDeleteSearchMagic} style={styles.translateBtn}>
-          {loading ? '...' : 'A⟷अ'}
-        </button>
+    <div style={styles.container}>
+      <h2 style={styles.header}>🗑️ Permanent Delete</h2>
+      <div style={styles.warning}>
+        ⚠️ <b>Warning:</b> This action cleans the database completely for the selected customer. If you reuse this ID later, it will start with 0 data.
       </div>
 
-      {/* Results List */}
-      <div style={{minHeight: '200px'}}>
-        {deleteSearch === "" ? (
-          <p style={{color: 'var(--text-secondary)', fontStyle: 'italic'}}>
-            Type a name or ID to search...
-          </p>
-        ) : deleteFiltered.length === 0 ? (
-          <p style={{fontWeight: 'bold', color: 'var(--text-main)'}}>{t.noDeleteResults}</p>
-        ) : (
-          deleteFiltered.map(cust => (
-            <div key={cust.id} style={styles.itemCard}>
-              <div style={styles.itemInfo}>
-                <div style={styles.name}>#{cust.id} - {cust.name}</div>
-                <div style={styles.address}>{cust.address}</div>
-              </div>
-              
-              <button 
-                style={styles.deleteBtn} 
-                onClick={() => handleConfirmDelete(cust.id, cust.name)}
-              >
-                {t.deleteBtn}
-              </button>
+      <input
+        style={styles.input}
+        placeholder="Search Customer to Delete..."
+        value={search}
+        onChange={e => { setSearch(e.target.value); setSelectedId(null); }}
+      />
+
+      {/* List of Customers */}
+      {search && !selectedId && (
+        <div style={styles.list}>
+          {filtered.map(c => (
+            <div key={c.id} style={styles.item} onClick={() => { setSearch(c.name); setSelectedId(c.id); }}>
+              <span>{c.name}</span>
+              <span style={{ fontWeight: 'bold' }}>#{c.id}</span>
             </div>
-          ))
-        )}
-      </div>
+          ))}
+        </div>
+      )}
+
+      {/* Selected Confirmation */}
+      {selectedId && (
+        <div style={{ marginTop: '20px', border: '2px dashed #EF4444', padding: '15px', borderRadius: '8px' }}>
+          <h3 style={{ marginTop: 0 }}>Selected: {customers.find(c => c.id === selectedId)?.name}</h3>
+          <p>ID: {selectedId}</p>
+          <button onClick={handleHardDelete} style={styles.btn} disabled={loading}>
+            {loading ? "DELETING EVERYTHING..." : "🔥 DELETE EVERYTHING"}
+          </button>
+          <button onClick={() => { setSelectedId(null); setSearch(""); }} style={{ ...styles.btn, background: 'transparent', color: 'var(--text-main)', border: '1px solid var(--border-color)', marginTop: '10px' }}>
+            Cancel
+          </button>
+        </div>
+      )}
     </div>
   );
 };

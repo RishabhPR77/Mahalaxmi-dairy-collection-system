@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { addCustomerToDb } from '../services/db';
+// IMPORT ALL DELETE FUNCTIONS TO CLEAN UP HISTORY
+import { addCustomerToDb, deleteCustomerFromDb, deleteLogEntry, deletePaymentFromDb } from '../services/db';
 
 // --- STYLES (Mobile First & Dark Mode Ready) ---
 const styles = {
@@ -40,7 +41,6 @@ const styles = {
     fontWeight: 'bold', cursor: 'pointer', color: 'white', 
     fontSize: '15px', flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center'
   },
-  // Shift Toggle Buttons
   shiftContainer: {
     display: 'flex', gap: '5px', background: 'var(--input-bg)', 
     padding: '4px', borderRadius: '10px', border: '1px solid var(--border-color)'
@@ -60,7 +60,7 @@ const styles = {
     display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px'
   }),
   customerItem: {
-    padding: '15px', borderBottom: '1px solid var(--border-color)', cursor: 'pointer',
+    padding: '15px', borderBottom: '1px solid var(--border-color)', 
     display: 'flex', justifyContent: 'space-between', alignItems: 'center'
   },
   activeItem: {
@@ -71,7 +71,7 @@ const styles = {
     maxHeight: '500px', overflowY: 'auto', 
     border: '1px solid var(--border-color)', borderRadius: '12px',
     marginTop: '20px',
-    position: 'relative' // Needed for sticky header
+    position: 'relative' 
   },
   stickyHeader: {
     position: 'sticky', 
@@ -83,12 +83,12 @@ const styles = {
   }
 };
 
-const CustomerManager = ({ customers, t, performMagic }) => {
+const CustomerManager = ({ customers, logs, payments, t, performMagic }) => {
   const [newCustomer, setNewCustomer] = useState({ id: "", name: "", address: "", mobile: "", rate: "", shift: "both" });
   const [editingId, setEditingId] = useState(null);
   const [loading, setLoading] = useState(false);
   
-  // --- NEW SEARCH STATES ---
+  // --- SEARCH STATES ---
   const [searchQuery, setSearchQuery] = useState("");
   const [searchLoading, setSearchLoading] = useState(false);
 
@@ -132,6 +132,42 @@ const CustomerManager = ({ customers, t, performMagic }) => {
         console.error(e);
         alert("Error saving data");
     }
+  };
+
+  // --- HARD DELETE FUNCTION ---
+  const handleDeleteCustomer = async (id, name) => {
+      const confirmMsg = `⚠️ WARNING: This will delete customer "${name}" AND ALL their milk history and payments.\n\nAre you sure?`;
+      if (!window.confirm(confirmMsg)) return;
+
+      try {
+          // 1. Delete Daily Logs
+          if (logs) {
+              const customerLogKeys = Object.keys(logs).filter(key => key.endsWith(`-${id}`));
+              for (const key of customerLogKeys) {
+                  const [date] = key.split(`-${id}`);
+                  await deleteLogEntry(date, id);
+              }
+          }
+
+          // 2. Delete Payments
+          if (payments) {
+              const customerPayments = payments.filter(p => p.customerId === id);
+              for (const payment of customerPayments) {
+                  await deletePaymentFromDb(payment.id);
+              }
+          }
+
+          // 3. Delete Customer Profile
+          await deleteCustomerFromDb(id);
+
+          // Clear form if we were editing this user
+          if (editingId === id) cancelEdit();
+
+          alert(`Deleted ${name} and all associated data.`);
+      } catch (error) {
+          console.error("Error deleting customer data:", error);
+          alert("Error occurred while deleting. Check console.");
+      }
   };
 
   const startEditing = (customer) => {
@@ -244,7 +280,7 @@ const CustomerManager = ({ customers, t, performMagic }) => {
           {/* Sticky Header with Search */}
           <div style={styles.stickyHeader}>
               <div style={{padding:'10px', fontWeight:'bold', textAlign:'center', color:'var(--text-secondary)'}}>
-                  Existing Customers (Tap to Edit)
+                  Existing Customers
               </div>
               <div style={{padding: '0 15px', display: 'flex', gap: '8px'}}>
                   <input 
@@ -271,13 +307,16 @@ const CustomerManager = ({ customers, t, performMagic }) => {
              filteredCustomers.map(c => (
               <div 
                 key={c.id} 
-                onClick={() => startEditing(c)} 
                 style={{
                     ...styles.customerItem,
                     ...(editingId === c.id ? styles.activeItem : {})
                 }}
               >
-                  <div style={{display:'flex', alignItems:'center', gap:'10px'}}>
+                  {/* Left Side: Info (Click to Edit) */}
+                  <div 
+                    onClick={() => startEditing(c)} 
+                    style={{display:'flex', alignItems:'center', gap:'10px', flex: 1, cursor:'pointer'}}
+                  >
                       <div style={{
                           background:'var(--input-bg)', width:'30px', height:'30px', borderRadius:'50%', 
                           display:'flex', alignItems:'center', justifyContent:'center', fontSize:'14px',
@@ -290,7 +329,28 @@ const CustomerManager = ({ customers, t, performMagic }) => {
                           <div style={{fontSize:'12px', color:'var(--text-secondary)'}}>{c.address || 'No Address'}</div>
                       </div>
                   </div>
-                  <div style={{fontWeight:'bold', color:'#10B981'}}>₹{c.rate}</div>
+
+                  {/* Right Side: Rate & Delete Button */}
+                  <div style={{display:'flex', alignItems:'center', gap:'15px'}}>
+                      <div style={{fontWeight:'bold', color:'#10B981'}}>₹{c.rate}</div>
+                      
+                      {/* DELETE BUTTON */}
+                      <button 
+                        onClick={(e) => {
+                            e.stopPropagation(); // Stop click from triggering edit
+                            handleDeleteCustomer(c.id, c.name);
+                        }}
+                        style={{
+                            background: 'transparent',
+                            border: 'none',
+                            cursor: 'pointer',
+                            fontSize: '18px'
+                        }}
+                        title="Delete Customer & History"
+                      >
+                        🗑️
+                      </button>
+                  </div>
               </div>
              ))
           )}
