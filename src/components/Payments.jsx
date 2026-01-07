@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 // IMPORT FIREBASE FUNCTIONS
-import { addPaymentToDb, deletePaymentFromDb, deleteLogEntry, deleteCustomerFromDb } from '../services/db'; 
+import { addPaymentToDb, deletePaymentFromDb, deleteLogEntry } from '../services/db'; 
 
 // --- STYLES (Theme Aware) ---
 const styles = {
@@ -71,17 +71,15 @@ const Payments = ({ customers, logs, payments, t, performMagic }) => {
   // Search Filters
   const paymentFiltered = customers.filter(c => c.id.toLowerCase().includes(paymentSearch.toLowerCase()) || c.name.toLowerCase().includes(paymentSearch.toLowerCase()));
 
-  // --- 1. CORE FINANCIAL LOGIC (Fixed for Firebase Data) ---
+  // --- 1. CORE FINANCIAL LOGIC ---
   const getFinancialSummary = () => {
     return customers.map(cust => {
         let totalBill = 0;
         
-        // Loop through all logs to find entries for this customer
         Object.keys(logs).forEach(key => {
             if (key.endsWith(`-${cust.id}`)) {
                 const entry = logs[key];
                 
-                // Calculate Milk Volume Correctly
                 const mTotal = (parseFloat(entry.morning_liters) || 0) + ((parseFloat(entry.morning_ml) || 0) / 1000);
                 const eTotal = (parseFloat(entry.evening_liters) || 0) + ((parseFloat(entry.evening_ml) || 0) / 1000);
                 
@@ -159,12 +157,6 @@ const Payments = ({ customers, logs, payments, t, performMagic }) => {
     }
   };
 
-  const deleteCustomer = async (id) => {
-      if(window.confirm("Are you sure you want to delete this customer?")) {
-          await deleteCustomerFromDb(id);
-      }
-  }
-
   // --- HISTORY LOGIC ---
   const getExtendedHistory = () => {
     if(!historyModalCustId) return [];
@@ -184,7 +176,12 @@ const Payments = ({ customers, logs, payments, t, performMagic }) => {
             const rate = entry.rate !== undefined ? parseFloat(entry.rate) : (customers.find(c=>c.id===custId)?.rate || 0);
             const cost = milk * rate;
             
-            if(cost > 0) events.push({ type: 'MILK', date: date, amount: cost });
+            if(cost > 0) events.push({ 
+                type: 'MILK', 
+                date: date, 
+                amount: cost,
+                details: { milk: milk, rate: rate }
+            });
         }
     });
 
@@ -311,13 +308,11 @@ const Payments = ({ customers, logs, payments, t, performMagic }) => {
                                     ₹{row.balance.toFixed(2)}
                                 </span>
                             </td>
+                            {/* ACTIONS COLUMN - ONLY VIEW BUTTON NOW */}
                             <td style={styles.td}>
-                                <div style={{display:'flex', gap:'20px'}}>
-                                    <button onClick={() => setHistoryModalCustId(row.id)} style={{...styles.btn, padding:'6px 12px', background:'#3B82F6', fontSize:'15px'}} title="View Details">
+                                <div style={{display:'flex', alignItems: 'center'}}>
+                                    <button onClick={() => setHistoryModalCustId(row.id)} style={{...styles.btn, padding:'8px 16px', background:'#3B82F6', fontSize:'14px', whiteSpace: 'nowrap'}} title="View Details">
                                          {t.btnHistory}
-                                    </button>
-                                    <button onClick={() => deleteCustomer(row.id)} style={{...styles.btn, padding:'6px 7px', background:'#EF4444', fontSize:'10px'}} title="Delete Customer">
-                                        🗑️
                                     </button>
                                 </div>
                             </td>
@@ -354,22 +349,23 @@ const Payments = ({ customers, logs, payments, t, performMagic }) => {
                                     <tr key={index}>
                                         <td style={styles.td}>{p.date}</td>
                                         
-                                        {/* Amount Column */}
+                                        {/* Amount Column - NOW WITH DETAILS */}
                                         <td style={styles.td}>
                                             {p.isMilk ? (
-                                                <span style={{color: '#EF4444'}}>+ ₹{p.amount.toFixed(2)} (Milk)</span>
+                                                <div style={{display:'flex', flexDirection:'column'}}>
+                                                    <span style={{color: '#EF4444', fontWeight:'bold'}}>+ ₹{p.amount.toFixed(2)}</span>
+                                                    <span style={{fontSize: '11px', color: 'var(--text-secondary)'}}>
+                                                        (Milk: {p.details?.milk.toFixed(1)}L × ₹{p.details?.rate})
+                                                    </span>
+                                                </div>
                                             ) : (
                                                 <span style={{color: '#10B981'}}>- ₹{p.amount.toFixed(2)} (Paid)</span>
                                             )}
                                         </td>
                                         
-                                        {/* Balance After */}
                                         <td style={{...styles.td, fontWeight: 'bold'}}>₹{p.balanceAfter.toFixed(2)}</td>
-                                        
-                                        {/* Method */}
                                         <td style={{...styles.td, fontSize: '0.9em', color: 'var(--text-secondary)'}}>{p.method || '-'}</td>
                                         
-                                        {/* Action - MODIFIED EMOJI */}
                                         <td style={styles.td}>
                                             {p.isMilk ? (
                                                 <button onClick={() => deleteLog(p.date, historyModalCustId)} title="Delete Milk Entry" style={{background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '18px'}}>🗑️</button>

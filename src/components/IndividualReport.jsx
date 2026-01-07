@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-// --- 1. FIXED IMPORTS FOR PDF GENERATION ---
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import { formatDate } from '../utils/helpers';
@@ -115,7 +114,6 @@ const IndividualReport = ({ customers, logs, t, performMagic }) => {
       const entry = logs[key];
 
       if (entry) {
-        // --- FIXED LOGIC FOR FIREBASE ---
         const mLit = parseFloat(entry.morning_liters || 0);
         const mMl = parseFloat(entry.morning_ml || 0);
         const eLit = parseFloat(entry.evening_liters || 0);
@@ -154,15 +152,11 @@ const IndividualReport = ({ customers, logs, t, performMagic }) => {
     });
   };
 
-  // --- 2. FIXED PDF DOWNLOAD FUNCTION ---
   const handleDownloadPDF = () => {
     if (!reportResult) return;
-    
-    // Create new PDF instance
     const doc = new jsPDF();
     const custName = reportResult.customer.name;
     
-    // Add Header Text
     doc.setFontSize(18); 
     doc.text(`Milk Bill: ${custName}`, 14, 22);
     
@@ -171,31 +165,47 @@ const IndividualReport = ({ customers, logs, t, performMagic }) => {
     doc.text(`Total Liters: ${reportResult.litres.toFixed(2)} L`, 14, 40);
     doc.text(`Total Amount: Rs ${reportResult.cost.toFixed(2)}`, 14, 48);
     
-    // Define Table Data
     const tableColumn = ["Date", "Morning", "Evening", "Rate", "Total (Rs)"];
     const tableRows = reportResult.details.map(row => {
         return [ row.date, row.morn.toFixed(2), row.eve.toFixed(2), row.rate, row.cost.toFixed(2) ];
     });
     
-    // Use autoTable correctly
     autoTable(doc, {
         startY: 55,
         head: [tableColumn],
         body: tableRows,
     });
     
-    // Save the PDF
     doc.save(`Bill_${custName}_${reportRange.start}.pdf`);
   };
 
+  // --- UPDATED WHATSAPP SHARE ---
   const handleWhatsAppShare = () => {
     if (!reportResult) return;
     const cust = reportResult.customer;
     if (!cust.mobile) return alert("Please add a Mobile Number for this customer.");
     
-    const totalAmt = reportResult.cost.toFixed(0);
-    const totalL = reportResult.litres.toFixed(1);
-    const message = `Hello ${cust.name}, your milk bill from ${reportRange.start} to ${reportRange.end} is ₹${totalAmt}. Total Milk: ${totalL} Liters.`;
+    // Header
+    let message = `*🧾 Milk Bill Statement*\n`;
+    message += `👤 *${cust.name}*\n`;
+    message += `📅 ${reportRange.start} to ${reportRange.end}\n\n`;
+    
+    // Table Header
+    message += `Date | M | E | Rate | Amt\n`;
+    message += `------------------------------\n`;
+
+    // Rows
+    reportResult.details.forEach(row => {
+        // Format date to show DD/MM for brevity
+        const dateShort = row.date.split('-').slice(1).reverse().join('/'); 
+        const m = row.morn > 0 ? row.morn.toFixed(1) : '-';
+        const e = row.eve > 0 ? row.eve.toFixed(1) : '-';
+        message += `${dateShort} | ${m} | ${e} | ${row.rate} | ₹${row.cost.toFixed(0)}\n`;
+    });
+
+    message += `------------------------------\n`;
+    message += `🥛 *Total Milk: ${reportResult.litres.toFixed(2)} L*\n`;
+    message += `💰 *Grand Total: ₹${reportResult.cost.toFixed(0)}*\n`;
     
     let phone = cust.mobile.replace(/[^0-9]/g, '');
     if (phone.length === 10) phone = '91' + phone;
@@ -280,10 +290,10 @@ const IndividualReport = ({ customers, logs, t, performMagic }) => {
             {/* Action Buttons */}
             <div style={{display:'flex', gap:'10px', marginBottom:'20px'}}>
                 <button onClick={handleDownloadPDF} style={{...styles.btn, background: '#EF4444'}}>
-                     {t.btnPdf}
+                    📄 {t.btnPdf}
                 </button>
                 <button onClick={handleWhatsAppShare} style={{...styles.btn, background: '#10B981'}}>
-                    {t.btnWhatsapp}
+                    💬 {t.btnWhatsapp}
                 </button>
             </div>
 

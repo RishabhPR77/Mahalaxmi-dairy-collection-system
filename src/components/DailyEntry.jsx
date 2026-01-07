@@ -190,10 +190,19 @@ const CustomerRow = ({ customer, selectedDate, currentShift, existingLog, onSave
   const [ml, setMl] = useState(getInitialMl());
   const [rate, setRate] = useState(customer.rate || 60);
 
+  // --- LOGIC UPDATED TO PRESERVE HISTORICAL RATES ---
   useEffect(() => {
     setLiters(getInitialLit());
     setMl(getInitialMl());
-    setRate(customer.rate || 60);
+    
+    // Logic: If there is ALREADY a log for this day, respect that day's rate.
+    // Only if there is NO log, use the customer's current global rate.
+    if (existingLog && existingLog.rate !== undefined && existingLog.rate !== null && existingLog.rate !== "") {
+        setRate(existingLog.rate);
+    } else {
+        setRate(customer.rate || 60);
+    }
+    
     setIsEditing(true); 
   }, [selectedDate, currentShift, existingLog, customer.rate]);
 
