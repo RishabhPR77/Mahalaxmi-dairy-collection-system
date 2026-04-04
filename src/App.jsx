@@ -133,7 +133,8 @@ function App() {
             logs={logs} 
             t={t} 
             exportData={() => alert("Data is backed up on Cloud automatically!")} 
-            importData={() => alert("Data restores automatically on login!")} 
+            importData={() => alert("Data restores automatically on login!")}
+            setActiveTab={setActiveTab}
         />
       )}
       
